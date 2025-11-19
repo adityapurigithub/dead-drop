@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  /* 1. Define our Cyber Colors */
+  --color-cyber-black: #0a0a0a;
+  --color-cyber-gray: #1a1a1a;
+  --color-neon-green: #00ff41;
+  --color-neon-red: #ff003c;
+
+  /* 2. Define Font */
+  --font-mono: "Courier New", Courier, monospace;
+
+  /* 3. Define Animations */
+  --animate-blink: blink 1s step-end infinite;
+  
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+}
+
+/* Global Reset */
+body {
+  background-color: var(--color-cyber-black);
+  color: var(--color-neon-green);
+  font-family: var(--font-mono);
+}
+
+/* The CRT Scanline Effect Class */
+.scanline-effect {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.2) 50%, 
+    rgba(0, 0, 0, 0.2)
+  );
+  background-size: 100% 4px; 
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+
+
+/* Hacker Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--color-cyber-gray); }
+::-webkit-scrollbar-thumb { background: var(--color-neon-green); border-radius: 4px; }
+
+
+button{
+  cursor: pointer;
+}
