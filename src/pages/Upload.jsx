@@ -10,7 +10,7 @@ import {
   Loader2,
   CheckCircle,
 } from "lucide-react";
-import { generateKey, encryptFile, exportKey } from "../utils";
+import { generateKey, encryptFile, exportKey } from "../utils/crypto";
 
 // --- Pure Helper Function (Moved outside to prevent re-creation) ---
 const formatSize = (bytes) => {
@@ -90,12 +90,33 @@ const Upload = () => {
       console.log("🔒 Encrypted Size:", encryptedBlob.size);
       console.log("🔑 Key Generated:", keyString);
 
-      // 4. Upload Simulation (Replace with actual API call later)
+     // 4. PREPARE FORM DATA
+      const formData = new FormData();
+      // 'file' is the field name Multer expects
+      formData.append("file", encryptedBlob, file.name); 
+      // 'iv' is required by our backend model
+      formData.append("iv", iv.toString()); 
+
       setStatus("uploading");
-      setTimeout(() => {
-        setStatus("done");
-        setEncryptionData({ keyString });
-      }, 2000);
+
+      // 5. SEND TO BACKEND
+      const response = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed on server');
+      
+      const data = await response.json();
+      console.log("Server Response:", data);
+
+// Construct the full magic link
+const fullLink = `${window.location.origin}/download/${data.fileId}#${keyString}`;
+
+setStatus("done");
+setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the key
+
+     
     } catch (error) {
       console.error("Encryption Failed:", error);
       setStatus("idle");
@@ -140,7 +161,7 @@ const Upload = () => {
           }}
           transition={{ duration: 0.2 }}
           className={`
-            relative w-full max-w-4xl h-80 rounded-xl border-2 border-dashed cursor-pointer 
+            relative w-full max-w-4xl p-1 h-80 rounded-xl border-2 border-dashed cursor-pointer 
             flex flex-col items-center justify-center overflow-hidden group
             ${file ? "border-neon-green bg-neon-green/5" : ""}
           `}
@@ -192,7 +213,7 @@ const Upload = () => {
                 key="file"
                 initial={{ opacity: 0, scale: 1.05 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="w-full px-12 flex flex-col items-center z-10"
+                className="w-full md:px-12 px-2 flex flex-col items-center z-10"
                 onClick={(e) => e.stopPropagation()} // Stop clicks here from opening file dialog
               >
                 <div className="w-full bg-cyber-black/80 border border-neon-green/50 p-4 rounded-lg flex items-center gap-4 shadow-[0_0_30px_rgba(0,255,65,0.1)] relative overflow-hidden">
@@ -285,20 +306,63 @@ const Upload = () => {
           )}
 
           {/* Status: Success */}
+          {/* STATE: SUCCESS (The Link Display) */}
           {status === "done" && (
             <motion.div
               key="done"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="mt-8 p-4 border border-neon-green/50 bg-neon-green/10 rounded-lg text-center max-w-md"
+              className="mt-8 w-full max-w-lg"
             >
-              <div className="flex items-center justify-center gap-2 text-neon-green mb-2">
-                <CheckCircle size={24} />
-                <span className="font-bold">SECURE DROP CREATED</span>
+              <div className="p-6 border border-neon-green bg-neon-green/5 rounded-lg text-center relative overflow-hidden">
+                
+                {/* Success Icon */}
+                <div className="flex items-center justify-center gap-2 text-neon-green mb-4">
+                  <CheckCircle size={24} />
+                  <span className="font-bold tracking-wider">ENCRYPTION COMPLETE</span>
+                </div>
+
+                {/* The Link Box */}
+                <div 
+                className="flex items-center gap-2 bg-cyber-black/50 p-2 rounded border border-neon-green/30"
+                    onClick={() => {
+                      navigator.clipboard.writeText(encryptionData?.link);
+                      alert("Copied to clipboard!");
+                    }}
+                
+                >
+                
+                  <input 
+                    readOnly 
+                    value={encryptionData?.link} 
+                    className="bg-transparent text-neon-green text-xs font-mono w-full focus:outline-none truncate px-2"
+                  />
+                  <button 
+                    className="p-2 bg-neon-green text-cyber-black rounded font-bold text-xs hover:bg-white transition-colors"
+                  >
+                    COPY
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-neon-green/60 mt-4 font-mono uppercase">
+                  Warning: This link works exactly once.
+                </p>
+
+                {/* Background scanning effect */}
+                <motion.div
+                  className="absolute top-0 left-0 w-full h-1 bg-neon-green/20"
+                  animate={{ top: ["0%", "100%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                />
               </div>
-              <p className="text-xs opacity-60 font-mono break-all">
-                Key: {encryptionData?.keyString?.substring(0, 24)}...
-              </p>
+              
+              {/* Reset Button */}
+              <button 
+                onClick={() => { setFile(null); setStatus("idle"); }}
+                className="mt-6 text-xs text-neon-green/50 hover:text-neon-green underline decoration-dashed underline-offset-4"
+              >
+                UPLOAD ANOTHER FILE
+              </button>
             </motion.div>
           )}
         </AnimatePresence>

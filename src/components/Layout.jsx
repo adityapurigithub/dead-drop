@@ -4,7 +4,7 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-cyber-black p-3 md:p-6 flex items-center justify-center text-neon-green font-mono selection:bg-neon-green selection:text-cyber-black overflow-x-hidden">
       {/* Main Terminal Window */}
-      <div className="w-full max-w-6xl h-[90vh] max-h-220 border border-neon-green/30 bg-cyber-gray/90 p-6 shadow-[0_0_20px_rgba(0,255,65,0.1)] relative overflow-hidden rounded-sm flex flex-col backdrop-blur-sm">
+      <div className="w-full max-w-6xl max-h-220 border border-neon-green/30 bg-cyber-gray/90 p-6 shadow-[0_0_20px_rgba(0,255,65,0.1)] relative overflow-hidden rounded-sm flex flex-col backdrop-blur-sm">
         {/* 1. Top Window Controls */}
         <div className="flex justify-between items-center mb-6 border-b border-neon-green/20 pb-2 shrink-0 z-20 relative">
           <div className="flex md:flex-row flex-col md:gap-2 gap-1">
