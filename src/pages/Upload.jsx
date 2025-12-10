@@ -11,6 +11,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { generateKey, encryptFile, exportKey } from "../utils/crypto";
+import { toast } from "sonner";
 
 // --- Pure Helper Function (Moved outside to prevent re-creation) ---
 const formatSize = (bytes) => {
@@ -90,35 +91,38 @@ const Upload = () => {
       console.log("🔒 Encrypted Size:", encryptedBlob.size);
       console.log("🔑 Key Generated:", keyString);
 
-     // 4. PREPARE FORM DATA
+      // 4. PREPARE FORM DATA
       const formData = new FormData();
       // 'file' is the field name Multer expects
-      formData.append("file", encryptedBlob, file.name); 
+      formData.append("file", encryptedBlob, file.name);
       // 'iv' is required by our backend model
-      formData.append("iv", iv.toString()); 
+      formData.append("iv", iv.toString());
+
+      console.log(formData.get("file"));
+      console.log(formData.get("iv"));
 
       setStatus("uploading");
 
       // 5. SEND TO BACKEND
-      const response = await fetch('http://localhost:5000/api/upload', {
-        method: 'POST',
+      const response = await fetch("http://localhost:5000/api/upload", {
+        method: "POST",
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Upload failed on server');
-      
+      if (!response.ok) throw new Error("Upload failed on server");
+
       const data = await response.json();
       console.log("Server Response:", data);
 
-// Construct the full magic link
-const fullLink = `${window.location.origin}/download/${data.fileId}#${keyString}`;
+      // Construct the full magic link
+      const fullLink = `${window.location.origin}/download/${data.fileId}#${keyString}`;
 
-setStatus("done");
-setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the key
-
-     
+      setStatus("done");
+      setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the key
+      toast.success("File uploaded successfully!");
     } catch (error) {
       console.error("Encryption Failed:", error);
+      toast.error("Upload failed. Please try again.");
       setStatus("idle");
     }
   }, [file]); // Dependency: Only recreate if file changes
@@ -147,116 +151,119 @@ setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the 
         </div>
 
         {/* 2. Drop Zone: Handles Selection Only */}
-        <motion.div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          animate={{
-            borderColor: isDragging ? "#00ff41" : "rgba(0, 255, 65, 0.3)",
-            backgroundColor: isDragging
-              ? "rgba(0, 255, 65, 0.05)"
-              : "rgba(0, 0, 0, 0.2)",
-            scale: isDragging ? 1.01 : 1, // Subtle scale
-          }}
-          transition={{ duration: 0.2 }}
-          className={`
-            relative w-full max-w-4xl p-1 h-80 rounded-xl border-2 border-dashed cursor-pointer 
+        {status !== "done" && (
+          <motion.div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            animate={{
+              borderColor: isDragging ? "#00ff41" : "rgba(0, 255, 65, 0.3)",
+              backgroundColor: isDragging
+                ? "rgba(0, 255, 65, 0.05)"
+                : "rgba(0, 0, 0, 0.2)",
+              scale: isDragging ? 1.01 : 1, // Subtle scale
+            }}
+            transition={{ duration: 0.2 }}
+            className={`
+            relative w-full max-w-4xl p-1 h-60 rounded-xl border-2 border-dashed cursor-pointer 
             flex flex-col items-center justify-center overflow-hidden group
             ${file ? "border-neon-green bg-neon-green/5" : ""}
           `}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+            />
 
-          {/* Visual: Grid Overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.1]"
-            style={{
-              backgroundImage: "radial-gradient(#00ff41 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }}
-          />
+            {/* Visual: Grid Overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.1]"
+              style={{
+                backgroundImage:
+                  "radial-gradient(#00ff41 1px, transparent 1px)",
+                backgroundSize: "20px 20px",
+              }}
+            />
 
-          <AnimatePresence mode="wait">
-            {!file ? (
-              // State A: Empty / Prompt
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex flex-col items-center space-y-4 z-10"
-              >
-                <div className="p-6 rounded-full bg-cyber-black border border-neon-green/30 group-hover:border-neon-green group-hover:shadow-[0_0_20px_rgba(0,255,65,0.2)] transition-all duration-300">
-                  <UploadCloud
-                    size={48}
-                    className="text-neon-green opacity-80"
-                  />
-                </div>
-                <div className="text-center space-y-1">
-                  <p className="text-lg font-bold tracking-wider">
-                    DRAG_AND_DROP
-                  </p>
-                  <p className="text-xs opacity-50 font-mono">
-                    OR CLICK TO BROWSE SYSTEM
-                  </p>
-                </div>
-              </motion.div>
-            ) : (
-              // State B: File Loaded Preview
-              <motion.div
-                key="file"
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full md:px-12 px-2 flex flex-col items-center z-10"
-                onClick={(e) => e.stopPropagation()} // Stop clicks here from opening file dialog
-              >
-                <div className="w-full bg-cyber-black/80 border border-neon-green/50 p-4 rounded-lg flex items-center gap-4 shadow-[0_0_30px_rgba(0,255,65,0.1)] relative overflow-hidden">
-                  <div className="p-3 bg-neon-green/10 rounded-md">
-                    <File size={24} />
+            <AnimatePresence mode="wait">
+              {!file ? (
+                // State A: Empty / Prompt
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="flex flex-col items-center space-y-4 z-10"
+                >
+                  <div className="p-6 rounded-full bg-cyber-black border border-neon-green/30 hover:scale-105 hover:border-neon-green/80 group-hover:border-neon-green group-hover:shadow-[0_0_20px_rgba(0,255,65,0.2)] transition-all duration-300">
+                    <UploadCloud
+                      size={48}
+                      className="text-neon-green opacity-80"
+                    />
                   </div>
-
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="font-bold truncate text-neon-green">
-                      {file.name}
+                  <div className="text-center space-y-1">
+                    <p className="text-lg font-bold tracking-wider">
+                      DRAG_AND_DROP
                     </p>
-                    <p className="text-xs opacity-60 font-mono">
-                      {formattedFileSize}
+                    <p className="text-xs opacity-50 font-mono">
+                      OR CLICK TO BROWSE SYSTEM
                     </p>
                   </div>
+                </motion.div>
+              ) : (
+                // State B: File Loaded Preview
+                <motion.div
+                  key="file"
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full md:px-12 px-2 flex flex-col items-center z-10"
+                  onClick={(e) => e.stopPropagation()} // Stop clicks here from opening file dialog
+                >
+                  <div className="w-full bg-cyber-black/80 border border-neon-green/50 p-4 rounded-lg flex items-center gap-4 shadow-[0_0_30px_rgba(0,255,65,0.1)] relative overflow-hidden">
+                    <div className="p-3 bg-neon-green/10 rounded-md">
+                      <File size={24} />
+                    </div>
 
-                  <button
-                    onClick={clearFile}
-                    className="p-2 hover:bg-neon-red/20 transition-all hover:text-neon-red rounded-full duration-300"
-                  >
-                    <X size={20} />
-                  </button>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-bold truncate text-neon-green">
+                        {file.name}
+                      </p>
+                      <p className="text-xs opacity-60 font-mono">
+                        {formattedFileSize}
+                      </p>
+                    </div>
 
-                  {/* Visual: Scanning Laser Animation */}
-                  <motion.div
-                    className="absolute top-0 left-0 w-0.5 h-full bg-neon-green/50 shadow-[0_0_10px_#00ff41]"
-                    animate={{ left: ["0%", "100%"] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 2,
-                      ease: "linear",
-                    }}
-                  />
-                </div>
+                    <button
+                      onClick={clearFile}
+                      className="p-2 hover:bg-neon-red/20 transition-all hover:text-neon-red rounded-full duration-300"
+                    >
+                      <X size={20} />
+                    </button>
 
-                <div className="mt-8 flex items-center gap-2 text-xs opacity-60 font-mono">
-                  <Cpu size={14} className="animate-pulse" />
-                  <span>WAITING FOR ENCRYPTION KEY...</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+                    {/* Visual: Scanning Laser Animation */}
+                    <motion.div
+                      className="absolute top-0 left-0 w-0.5 h-full bg-neon-green/50 shadow-[0_0_10px_#00ff41]"
+                      animate={{ left: ["0%", "100%"] }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 2,
+                        ease: "linear",
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-8 flex items-center gap-2 text-xs opacity-60 font-mono">
+                    <Cpu size={14} className="animate-pulse" />
+                    <span>WAITING FOR ENCRYPTION KEY...</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
 
         {/* 3. Action Area: Encryption & Upload (Outside Drop Zone) */}
         <AnimatePresence mode="wait">
@@ -315,31 +322,28 @@ setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the 
               className="mt-8 w-full max-w-lg"
             >
               <div className="p-6 border border-neon-green bg-neon-green/5 rounded-lg text-center relative overflow-hidden">
-                
                 {/* Success Icon */}
                 <div className="flex items-center justify-center gap-2 text-neon-green mb-4">
                   <CheckCircle size={24} />
-                  <span className="font-bold tracking-wider">ENCRYPTION COMPLETE</span>
+                  <span className="font-bold tracking-wider">
+                    ENCRYPTION COMPLETE
+                  </span>
                 </div>
 
                 {/* The Link Box */}
-                <div 
-                className="flex items-center gap-2 bg-cyber-black/50 p-2 rounded border border-neon-green/30"
-                    onClick={() => {
-                      navigator.clipboard.writeText(encryptionData?.link);
-                      alert("Copied to clipboard!");
-                    }}
-                
+                <div
+                  className="flex items-center gap-2 bg-cyber-black/50 p-2 rounded border border-neon-green/30"
+                  onClick={() => {
+                    navigator.clipboard.writeText(encryptionData?.link);
+                    toast.success("Copied to clipboard!");
+                  }}
                 >
-                
-                  <input 
-                    readOnly 
-                    value={encryptionData?.link} 
+                  <input
+                    readOnly
+                    value={encryptionData?.link}
                     className="bg-transparent text-neon-green text-xs font-mono w-full focus:outline-none truncate px-2"
                   />
-                  <button 
-                    className="p-2 bg-neon-green text-cyber-black rounded font-bold text-xs hover:bg-white transition-colors"
-                  >
+                  <button className="p-2 bg-neon-green text-cyber-black rounded font-bold text-xs hover:bg-white transition-colors">
                     COPY
                   </button>
                 </div>
@@ -350,18 +354,25 @@ setEncryptionData({ link: fullLink }); // <--- Save the FULL link, not just the 
 
                 {/* Background scanning effect */}
                 <motion.div
-                  className="absolute top-0 left-0 w-full h-1 bg-neon-green/20"
+                  className="absolute top-0 left-0 w-full h-1 bg-neon-red/20"
                   animate={{ top: ["0%", "100%"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "backInOut",
+                  }}
                 />
               </div>
-              
+
               {/* Reset Button */}
-              <button 
-                onClick={() => { setFile(null); setStatus("idle"); }}
-                className="mt-6 text-xs text-neon-green/50 hover:text-neon-green underline decoration-dashed underline-offset-4"
+              <button
+                onClick={() => {
+                  setFile(null);
+                  setStatus("idle");
+                }}
+                className="mt-6 text-sm text-neon-green/50 hover:text-neon-green underline decoration-dashed underline-offset-4"
               >
-                UPLOAD ANOTHER FILE
+                UPLOAD NEW FILE
               </button>
             </motion.div>
           )}
